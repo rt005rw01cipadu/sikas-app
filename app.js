@@ -60,6 +60,12 @@ function matchAnggotaKeyword(a, kw) {
 function statusWargaLabel(a) {
   return Number(a?.aktif) === 1 ? "Aktif" : "Nonaktif";
 }
+function getIuranPerBulan(a) {
+  if (!a) return 0;
+  return Number(a.iuran_per_bulan || 0) ||
+         Number(a.iuran_kas || 0) + Number(a.iuran_rmd || 0) +
+         Number(a.iuran_konsumsi || 0) + Number(a.iuran_dana_17n || 0);
+}
 function normalizeRole(role) {
   return String(role || "petugas").toLowerCase().trim();
 }
@@ -350,20 +356,8 @@ function renderCariResults() {
       const statusPeriode = a.status_periode || (a.total_tunggakan > 0 ? "Belum Bayar" : "Sudah Bayar");
       const sudahBayar = String(statusPeriode).toLowerCase().includes("sudah");
 
-      if (isViewer()) {
-        return `
-          <div class="pel-item viewer-result" onclick="openDetail('${esc(a.id_anggota)}','cari')">
-            <div class="avatar">${initials(a.nama)}</div>
-            <div class="pel-info">
-              <div class="pel-name">${escHtml(a.nama)}</div>
-              <div class="pel-sub">No ${escHtml(a.no_rumah)} · ${iuranLabel || "Iuran"}</div>
-            </div>
-            <span class="badge ${sudahBayar ? "badge-green" : "badge-red"}">${escHtml(statusPeriode)}</span>
-          </div>`;
-      }
-
       return `
-        <div class="pel-item" onclick="openDetail('${esc(a.id_anggota)}','cari')">
+        <div class="pel-item${isViewer() ? " viewer-result" : ""}" onclick="openDetail('${esc(a.id_anggota)}','cari')">
           <div class="avatar">${initials(a.nama)}</div>
           <div class="pel-info">
             <div class="pel-name">${escHtml(a.nama)}</div>
@@ -374,8 +368,8 @@ function renderCariResults() {
             }</div>
           </div>
           ${a.total_tunggakan > 0
-            ? `<span class="badge badge-red">${totalBln} bln</span>`
-            : `<span class="badge badge-green">✓</span>`}
+            ? `<span class="badge badge-red">Belum Bayar</span>`
+            : `<span class="badge badge-green">Lunas</span>`}
         </div>`;
     }).join("")}
     ${renderPagination("cari", pg.curPage, pg.totalPages, data.length, pg.start, pg.end)}
@@ -438,19 +432,23 @@ async function exportCariExcel() {
 // ════════════════════════════════════════════════════════════════════════
 async function openDetail(id, from = "cari") {
   fromPage = from;
+  let anggota = null;
 
-  // Untuk viewer, data anggota diambil dari hasil Cari agar tidak perlu membuka akses getAnggota.
-  // Untuk admin/petugas, tetap gunakan cache MasterAnggota seperti sebelumnya.
-  if (!isViewer() && !allAnggota.length) await prefetchAnggota();
-  const anggota = (allAnggota.find(a => String(a.id_anggota) === String(id)) ||
-                  cariData.find(a => String(a.id_anggota) === String(id)));
-  if (!anggota) { showToast("Anggota tidak ditemukan", "error"); return; }
+  if (isViewer()) {
+    anggota = (cariData || []).find(a => String(a.id_anggota) === String(id));
+  } else {
+    if (!allAnggota.length) await prefetchAnggota();
+    anggota = allAnggota.find(a => String(a.id_anggota) === String(id));
+  }
+
+  if (!anggota) { showToast("Data anggota tidak ditemukan. Silakan cari ulang.", "error"); return; }
   currentAnggota = anggota;
   document.getElementById("detail-nama").textContent    = "Detail Tunggakan";
   document.getElementById("detail-norumah").textContent = anggota.nama;
   const detailEl = document.getElementById("detail-riwayat");
   if (detailEl) detailEl.innerHTML = "<div class='loading'>⏳ Memuat tunggakan...</div>";
   showPage("pg-detail");
+
   try {
     const res = await api({ action: "getTunggakan", token: session?.token, id_anggota: id });
     if (res.status !== "ok" || !res.data) { detailEl.innerHTML = `<div class="empty">Gagal memuat</div>`; return; }
@@ -460,7 +458,7 @@ async function openDetail(id, from = "cari") {
     let html = `
       <div class="info-row"><span class="lbl">Anggota</span><span class="val">${escHtml(anggota.nama)}</span></div>
       <div class="info-row"><span class="lbl">No Rumah</span><span class="val mono">${escHtml(anggota.no_rumah)}</span></div>
-      <div class="info-row"><span class="lbl">Iuran/Bulan</span><span class="val">${rp(anggota.iuran_per_bulan || ((anggota.iuran_kas||0) + (anggota.iuran_rmd||0) + (anggota.iuran_konsumsi||0) + (anggota.iuran_dana_17n||0)))}</span></div>
+      <div class="info-row"><span class="lbl">Iuran/Bulan</span><span class="val">${rp(getIuranPerBulan(anggota))}</span></div>
       <div class="divider"></div>`;
 
     html += renderTunggakanBlock("💰 Kas",             d.kas,      d.iuran_kas,      d.ikut_kas);
@@ -474,12 +472,13 @@ async function openDetail(id, from = "cari") {
       </div>`;
 
     if (!isViewer()) {
-      html += `
-      <button class="btn btn-green" style="margin-top:12px;" onclick="openBayarDariDetail('${esc(anggota.id_anggota)}')">💰 Bayar Sekarang</button>`;
+      html += `<button class="btn btn-green" style="margin-top:12px;" onclick="openBayarDariDetail('${esc(anggota.id_anggota)}')">💰 Bayar Sekarang</button>`;
     }
 
     detailEl.innerHTML = html;
-  } catch(e) { detailEl.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+  } catch(e) {
+    detailEl.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
 }
 
 function renderTunggakanBlock(label, list, nominal, ikut) {
@@ -594,54 +593,81 @@ async function loadTunggakan(id) {
       currentTunggakan = res.data;
       const d = res.data;
 
-      // Kas
-      const kasGroup = document.getElementById("bayar-kas-group");
-      if (d.ikut_kas && d.kas.length > 0) {
-        if (kasGroup) kasGroup.style.display = "block";
-        if (kasEl) kasEl.innerHTML = `<div class="section-label">💰 Kas (${rp(d.iuran_kas)}/bulan)</div>` +
-          d.kas.map(t => `<div class="tunggakan-item">📅 ${t.bulan} ${t.tahun} — ${rp(t.nominal)} ❌</div>`).join("");
-      } else {
-        if (kasGroup) kasGroup.style.display = "none";
-        if (kasEl) kasEl.innerHTML = d.ikut_kas ? `<div class="empty small">✅ Tidak ada tunggakan Kas</div>` : "";
+      const maxBayar = d.maks_bayar || {};
+
+      function renderBayarJenis(groupId, containerEl, ikut, list, label, nominal, emptyText, extraInfo) {
+        const groupEl = document.getElementById(groupId);
+        if (groupEl) groupEl.style.display = ikut ? "block" : "none";
+        if (!containerEl) return;
+        if (!ikut) { containerEl.innerHTML = ""; return; }
+
+        let html = `<div class="section-label">${label} (${rp(nominal)}/bulan)</div>`;
+        if (list && list.length > 0) {
+          html += list.map(t => `<div class="tunggakan-item">📅 ${escHtml(t.bulan)} ${escHtml(String(t.tahun))} — ${rp(t.nominal)} ❌</div>`).join("");
+        } else {
+          html += `<div class="empty small">${emptyText}</div>`;
+        }
+        if (extraInfo) {
+          html += `<div class="empty small" style="text-align:left;color:var(--c-text2);">${extraInfo}</div>`;
+        }
+        containerEl.innerHTML = html;
       }
 
-      // RMD
-      const rmdGroup = document.getElementById("bayar-rmd-group");
-      if (d.ikut_rmd && d.rmd.length > 0) {
-        if (rmdGroup) rmdGroup.style.display = "block";
-        if (rmdEl) rmdEl.innerHTML = `<div class="section-label">🏦 Piranti RMD (${rp(d.iuran_rmd)}/bulan)</div>` +
-          d.rmd.map(t => `<div class="tunggakan-item">📅 ${t.bulan} ${t.tahun} — ${rp(t.nominal)} ❌</div>`).join("");
-      } else {
-        if (rmdGroup) rmdGroup.style.display = "none";
-      }
+      renderBayarJenis(
+        "bayar-kas-group",
+        kasEl,
+        d.ikut_kas,
+        d.kas,
+        "💰 Kas",
+        d.iuran_kas,
+        "✅ Tidak ada tunggakan Kas. Pembayaran deposito tetap bisa dicatat.",
+        `Maksimal input deposito: ${maxBayar.kas ?? 120} bulan.`
+      );
 
-      // Konsumsi
-      const konGroup = document.getElementById("bayar-konsumsi-group");
-      if (d.ikut_konsumsi && d.konsumsi.length > 0) {
-        if (konGroup) konGroup.style.display = "block";
-        if (konEl) konEl.innerHTML = `<div class="section-label">🍽️ Konsumsi (${rp(d.iuran_konsumsi)}/bulan)</div>` +
-          d.konsumsi.map(t => `<div class="tunggakan-item">📅 ${t.bulan} ${t.tahun} — ${rp(t.nominal)} ❌</div>`).join("");
-      } else {
-        if (konGroup) konGroup.style.display = "none";
-      }
+      renderBayarJenis(
+        "bayar-rmd-group",
+        rmdEl,
+        d.ikut_rmd,
+        d.rmd,
+        "🏦 Piranti RMD",
+        d.iuran_rmd,
+        "✅ Tidak ada tunggakan RMD. Pembayaran deposito tetap bisa dicatat.",
+        `Maksimal input deposito: ${maxBayar.rmd ?? 120} bulan.`
+      );
 
-      // Dana 17n
-      const d17Group = document.getElementById("bayar-dana17n-group");
-      if (d.ikut_dana_17n && d.dana_17n.length > 0) {
-        if (d17Group) d17Group.style.display = "block";
-        if (d17El) d17El.innerHTML = `<div class="section-label">🎉 Dana 17n (${rp(d.iuran_dana_17n)}/bulan)</div>` +
-          d.dana_17n.map(t => `<div class="tunggakan-item">📅 ${t.bulan} ${t.tahun} — ${rp(t.nominal)} ❌</div>`).join("");
-      } else {
-        if (d17Group) d17Group.style.display = "none";
-      }
+      renderBayarJenis(
+        "bayar-konsumsi-group",
+        konEl,
+        d.ikut_konsumsi,
+        d.konsumsi,
+        "🍽️ Konsumsi",
+        d.iuran_konsumsi,
+        "✅ Tidak ada tunggakan Konsumsi. Pembayaran deposito tetap bisa dicatat.",
+        `Maksimal input deposito: ${maxBayar.konsumsi ?? 120} bulan.`
+      );
+
+      const info17n = d.dana17n_info?.batas
+        ? `Batas pembayaran Dana 17n: ${escHtml(d.dana17n_info.batas)}. Maksimal input saat ini: ${Number(maxBayar.dana_17n || 0)} bulan.`
+        : `Maksimal input Dana 17n saat ini: ${Number(maxBayar.dana_17n || 0)} bulan.`;
+      renderBayarJenis(
+        "bayar-dana17n-group",
+        d17El,
+        d.ikut_dana_17n,
+        d.dana_17n,
+        "🎉 Dana 17n",
+        d.iuran_dana_17n,
+        "✅ Tidak ada tunggakan Dana 17n pada bulan berjalan.",
+        info17n
+      );
 
       if (totalEl) totalEl.textContent = rp(d.grand_total || 0);
 
-      // Set max & reset input
-      setInputMax("bayar-jml-kas",     d.kas?.length      || 0);
-      setInputMax("bayar-jml-rmd",     d.rmd?.length      || 0);
-      setInputMax("bayar-jml-konsumsi",d.konsumsi?.length || 0);
-      setInputMax("bayar-jml-dana17n", d.dana_17n?.length || 0);
+      // Set max & reset input.
+      // Kas/RMD/Konsumsi boleh deposito. Dana 17n dibatasi oleh bulan_cutoff dan jumlah_bulan dari MasterJenisIuran.
+      setInputMax("bayar-jml-kas",      d.ikut_kas      ? Number(maxBayar.kas      ?? 120) : 0);
+      setInputMax("bayar-jml-rmd",      d.ikut_rmd      ? Number(maxBayar.rmd      ?? 120) : 0);
+      setInputMax("bayar-jml-konsumsi", d.ikut_konsumsi ? Number(maxBayar.konsumsi ?? 120) : 0);
+      setInputMax("bayar-jml-dana17n",  d.ikut_dana_17n ? Number(maxBayar.dana_17n ?? 0) : 0);
 
       updateTotalBayar();
       const totalBln = (d.kas?.length||0) + (d.rmd?.length||0) + (d.konsumsi?.length||0) + (d.dana_17n?.length||0);
@@ -658,16 +684,52 @@ async function loadTunggakan(id) {
 }
 
 function setInputMax(id, max) {
-  const el = document.getElementById(id); if (el) { el.max = max; el.value = ""; }
+  const el = document.getElementById(id);
+  if (el) {
+    el.max = Math.max(0, Number(max || 0));
+    el.min = 0;
+    el.value = "";
+  }
+}
+function getInputInt(id) {
+  const n = parseInt(document.getElementById(id)?.value || 0, 10);
+  return isFinite(n) && n > 0 ? n : 0;
+}
+function getInputMax(id) {
+  const n = Number(document.getElementById(id)?.max || 0);
+  return isFinite(n) ? n : 0;
+}
+function validateBayarInputLimits() {
+  const checks = [
+    ["bayar-jml-kas", "Kas"],
+    ["bayar-jml-rmd", "RMD"],
+    ["bayar-jml-konsumsi", "Konsumsi"],
+    ["bayar-jml-dana17n", "Dana 17n"],
+  ];
+
+  for (const [id, label] of checks) {
+    const val = getInputInt(id);
+    const max = getInputMax(id);
+    if (val > max) {
+      if (label === "Dana 17n") {
+        const batas = currentTunggakan?.dana17n_info?.batas || "bulan cutoff";
+        showToast(`Pembayaran Dana 17n maksimal ${max} bulan, sampai ${batas}`, "error");
+      } else {
+        showToast(`Pembayaran ${label} maksimal ${max} bulan`, "error");
+      }
+      return false;
+    }
+  }
+  return true;
 }
 
 function updateTotalBayar() {
   if (!currentTunggakan) return;
   const d   = currentTunggakan;
-  const kas = parseInt(document.getElementById("bayar-jml-kas")?.value      || 0);
-  const rmd = parseInt(document.getElementById("bayar-jml-rmd")?.value      || 0);
-  const kon = parseInt(document.getElementById("bayar-jml-konsumsi")?.value || 0);
-  const d17 = parseInt(document.getElementById("bayar-jml-dana17n")?.value  || 0);
+  const kas = getInputInt("bayar-jml-kas");
+  const rmd = getInputInt("bayar-jml-rmd");
+  const kon = getInputInt("bayar-jml-konsumsi");
+  const d17 = getInputInt("bayar-jml-dana17n");
   const total = (kas * (d.iuran_kas||0)) + (rmd * (d.iuran_rmd||0)) +
                 (kon * (d.iuran_konsumsi||0)) + (d17 * (d.iuran_dana_17n||0));
   const grandEl = document.getElementById("bayar-grand");
@@ -677,13 +739,14 @@ function updateTotalBayar() {
 async function simpanPembayaran() {
   if (isViewer()) { showToast("Role viewer tidak memiliki akses menyimpan pembayaran", "error"); return; }
   if (!bayarAnggota) { showToast("Pilih anggota terlebih dahulu", "error"); return; }
-  const jml_kas      = parseInt(document.getElementById("bayar-jml-kas")?.value      || 0);
-  const jml_rmd      = parseInt(document.getElementById("bayar-jml-rmd")?.value      || 0);
-  const jml_konsumsi = parseInt(document.getElementById("bayar-jml-konsumsi")?.value || 0);
-  const jml_dana_17n = parseInt(document.getElementById("bayar-jml-dana17n")?.value  || 0);
+  const jml_kas      = getInputInt("bayar-jml-kas");
+  const jml_rmd      = getInputInt("bayar-jml-rmd");
+  const jml_konsumsi = getInputInt("bayar-jml-konsumsi");
+  const jml_dana_17n = getInputInt("bayar-jml-dana17n");
   if (jml_kas + jml_rmd + jml_konsumsi + jml_dana_17n === 0) {
     showToast("Pilih minimal 1 bulan untuk dibayar", "error"); return;
   }
+  if (!validateBayarInputLimits()) return;
   const btn = document.getElementById("btn-simpan-bayar");
   if (btn) { btn.disabled = true; btn.textContent = "⏳ Menyimpan..."; }
   try {

@@ -165,23 +165,24 @@
             <span class="val total" id="bayar-total">Rp 0</span>
           </div>
         </div>
+        <div class="sub" style="margin:-4px 0 12px;">Pembayaran dapat dicatat untuk tunggakan bulan lama dan deposit bulan berikutnya.</div>
 
-        <!-- Input jumlah bulan per jenis — hanya tampil jika warga ikut iuran tersebut -->
+        <!-- Input jumlah bulan per jenis — tampil jika warga mengikuti iuran tersebut -->
         <div class="form-row" style="flex-wrap:wrap;">
           <div class="form-group" id="bayar-kas-group" style="flex:1;min-width:140px;display:none;">
-            <label class="form-label">💰 Bulan Kas dibayar</label>
+            <label class="form-label">💰 Jumlah bulan Kas dibayar</label>
             <input class="form-input" id="bayar-jml-kas" type="number" min="0" placeholder="0" oninput="updateTotalBayar()">
           </div>
           <div class="form-group" id="bayar-rmd-group" style="flex:1;min-width:140px;display:none;">
-            <label class="form-label">🏦 Bulan RMD dibayar</label>
+            <label class="form-label">🏦 Jumlah bulan RMD dibayar</label>
             <input class="form-input" id="bayar-jml-rmd" type="number" min="0" placeholder="0" oninput="updateTotalBayar()">
           </div>
           <div class="form-group" id="bayar-konsumsi-group" style="flex:1;min-width:140px;display:none;">
-            <label class="form-label">🍽️ Bulan Konsumsi dibayar</label>
+            <label class="form-label">🍽️ Jumlah bulan Konsumsi dibayar</label>
             <input class="form-input" id="bayar-jml-konsumsi" type="number" min="0" placeholder="0" oninput="updateTotalBayar()">
           </div>
           <div class="form-group" id="bayar-dana17n-group" style="flex:1;min-width:140px;display:none;">
-            <label class="form-label">🎉 Bulan Dana 17n dibayar</label>
+            <label class="form-label">🎉 Jumlah bulan Dana 17n dibayar</label>
             <input class="form-input" id="bayar-jml-dana17n" type="number" min="0" placeholder="0" oninput="updateTotalBayar()">
           </div>
         </div>
