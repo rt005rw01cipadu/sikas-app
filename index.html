@@ -131,6 +131,7 @@
   <div class="topbar">
     <div class="topbar-row">
       <div><h1>Form Pembayaran</h1><div class="sub">Input iuran warga</div></div>
+      <button class="topbar-icon" onclick="doLogout()" title="Keluar">🚪</button>
     </div>
   </div>
   <div class="page-body">
@@ -210,6 +211,7 @@
   <div class="topbar">
     <div class="topbar-row">
       <div><h1>Laporan Bulanan</h1><div class="sub" id="lap-periode">—</div></div>
+      <button class="topbar-icon" onclick="doLogout()" title="Keluar">🚪</button>
     </div>
   </div>
   <div class="page-body">
@@ -264,7 +266,10 @@
 <!-- ══════════════════════════ DETAIL WARGA ════════════ -->
 <div class="page" id="pg-detail">
   <div class="topbar">
-    <button class="back-btn" onclick="goBack()">← Kembali</button>
+    <div class="topbar-row">
+      <button class="back-btn" onclick="goBack()">← Kembali</button>
+      <button class="topbar-icon" onclick="doLogout()" title="Keluar">🚪</button>
+    </div>
     <div><h1 id="detail-nama">—</h1><div class="sub" id="detail-norumah">—</div></div>
   </div>
   <div class="page-body">

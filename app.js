@@ -360,8 +360,8 @@ function renderCariResults() {
             }</div>
           </div>
           ${a.total_tunggakan > 0
-            ? `<span class="badge badge-red">Belum Bayar</span>`
-            : `<span class="badge badge-green">Lunas</span>`}
+            ? `<span class="badge badge-red">${totalBln} bln</span>`
+            : `<span class="badge badge-green">✓</span>`}
         </div>`;
     }).join("")}
     ${renderPagination("cari", pg.curPage, pg.totalPages, data.length, pg.start, pg.end)}

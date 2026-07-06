@@ -231,4 +231,4 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--c-bg); col
 /* Role viewer: hanya menampilkan menu Cari dan status pembayaran */
 body.role-viewer .bottom-nav { justify-content: center; }
 body.role-viewer .bottom-nav .nav-item { min-width: 120px; }
-.viewer-result { cursor: default; }
+.viewer-result { cursor: pointer; }
