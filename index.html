@@ -12,6 +12,29 @@
 <body>
 <div id="app">
 
+<!-- ══════════════════════ CEK STATUS PUBLIK (TANPA LOGIN) ══════════════════ -->
+<div class="page" id="pg-cek">
+  <div class="login-logo">
+    <div class="drop">🏠</div>
+    <h1>SiKAS</h1>
+    <p>Cek Status Iuran Warga RT</p>
+  </div>
+  <div class="login-card">
+    <h2>Cek status iuran Anda</h2>
+    <p class="sub" style="margin-bottom:16px;">Masukkan nama atau nomor rumah untuk melihat status pembayaran Kas, RMD, Konsumsi &amp; Dana 17n bulan ini. Tidak perlu login.</p>
+    <div class="login-err" id="cek-err"></div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">Nama / No. Rumah</label>
+      <input class="form-input" id="cek-keyword" type="text" placeholder="Contoh: Budi atau A12" autocomplete="off"/>
+    </div>
+    <button class="btn btn-primary" id="btn-cek" onclick="doCekPublik()">🔍 Cek Status</button>
+    <div id="cek-results" style="margin-top:16px;"></div>
+  </div>
+  <div class="public-footer">
+    <button class="link-btn" onclick="goPageLoginPublik()">🔐 Masuk sebagai Petugas / Admin</button>
+  </div>
+</div>
+
 <!-- ══════════════════════════ LOGIN ══════════════════════════ -->
 <div class="page" id="pg-login">
   <div class="login-logo">
@@ -20,6 +43,7 @@
     <p>Sistem Iuran Kas RT</p>
   </div>
   <div class="login-card">
+    <button class="back-btn" style="margin-bottom:8px;" onclick="goPageCekPublik()">← Kembali ke Cek Status</button>
     <h2>Masuk ke sistem</h2>
     <div class="login-err" id="login-err"></div>
     <div class="form-group">
