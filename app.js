@@ -112,10 +112,9 @@ window.onload = () => {
     ["click","keydown","touchstart","scroll"].forEach(ev =>
       document.addEventListener(ev, () => { if (session?.token) resetLogoutTimer(); }));
   } else {
-    showPage("pg-cek");
+    showPage("pg-login");
   }
   document.getElementById("inp-password")?.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
-  document.getElementById("cek-keyword")?.addEventListener("keydown", e => { if (e.key === "Enter") doCekPublik(); });
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -167,93 +166,11 @@ function doLogout() {
   sessionStorage.removeItem("sikas_session");
   session = null; allAnggota = [];
   Object.keys(pgState).forEach(k => { pgState[k].page = 1; pgState[k].data = []; });
-  showPage("pg-cek");
+  showPage("pg-login");
   const u = document.getElementById("inp-username"); if (u) u.value = "";
   const p = document.getElementById("inp-password"); if (p) p.value = "";
   const e = document.getElementById("login-err"); if (e) e.style.display = "none";
   showToast("Anda telah logout");
-}
-
-// ════════════════════════════════════════════════════════════════════════
-//  CEK STATUS PUBLIK (TANPA LOGIN)
-// ════════════════════════════════════════════════════════════════════════
-function goPageCekPublik() { showPage("pg-cek"); }
-function goPageLoginPublik() { showPage("pg-login"); }
-
-async function doCekPublik() {
-  const keywordEl = document.getElementById("cek-keyword");
-  const keyword   = keywordEl?.value.trim() || "";
-  const errEl     = document.getElementById("cek-err");
-  const resultsEl = document.getElementById("cek-results");
-  const btn       = document.getElementById("btn-cek");
-
-  if (errEl) errEl.style.display = "none";
-
-  const isNumericOnly = /^\d+$/.test(keyword);
-  const minLen = isNumericOnly ? 1 : 2;
-  if (keyword.length < minLen) {
-    if (errEl) { errEl.textContent = "Masukkan minimal 1 digit nomor rumah, atau 2 huruf nama"; errEl.style.display = "block"; }
-    return;
-  }
-
-  if (btn) { btn.disabled = true; btn.textContent = "⏳ Mencari..."; }
-  if (resultsEl) resultsEl.innerHTML = `<div class="loading">⏳ Mencari data…</div>`;
-
-  try {
-    const res = await api({ action: "publicCekTunggakan", keyword });
-    if (res.status !== "ok") {
-      if (errEl) { errEl.textContent = res.message || "Gagal mencari data"; errEl.style.display = "block"; }
-      if (resultsEl) resultsEl.innerHTML = "";
-      return;
-    }
-    renderCekPublikResults(res);
-  } catch(err) {
-    if (errEl) { errEl.textContent = "Gagal terhubung: " + err.message; errEl.style.display = "block"; }
-    if (resultsEl) resultsEl.innerHTML = "";
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "🔍 Cek Status"; }
-  }
-}
-
-function renderCekPublikResults(res) {
-  const resultsEl = document.getElementById("cek-results");
-  if (!resultsEl) return;
-  const data = res.data || [];
-
-  if (!data.length) {
-    resultsEl.innerHTML = `<div class="empty small">Tidak ada warga yang cocok dengan kata kunci tersebut.</div>`;
-    return;
-  }
-
-  const jenisRow = (label, ikut, bulanTunggak) => {
-    if (!ikut) return "";
-    const lunas = Number(bulanTunggak || 0) <= 0;
-    return `<div class="cek-jenis-row">
-      <span class="jn">${label}</span>
-      <span class="st ${lunas ? "ok" : "bad"}">${lunas ? "✓ Lunas" : `Tunggak ${bulanTunggak} bln`}</span>
-    </div>`;
-  };
-
-  resultsEl.innerHTML = data.map(a => `
-    <div class="cek-card">
-      <div class="cek-card-head">
-        <div><div class="nm">${escHtml(a.nama)}</div><div class="rm">No. Rumah ${escHtml(a.no_rumah)}</div></div>
-        ${a.total_tunggakan > 0
-          ? `<span class="badge badge-red">Belum Lunas</span>`
-          : `<span class="badge badge-green">✓ Lunas</span>`}
-      </div>
-      ${jenisRow("💰 Kas",      a.ikut_kas,      a.bulan_tunggak_kas)}
-      ${jenisRow("🏦 RMD",      a.ikut_rmd,      a.bulan_tunggak_rmd)}
-      ${jenisRow("🍽️ Konsumsi", a.ikut_konsumsi, a.bulan_tunggak_konsumsi)}
-      ${jenisRow("🎉 Dana 17n", a.ikut_dana_17n, a.bulan_tunggak_dana_17n)}
-      <div class="cek-total">
-        <span>Total Tunggakan</span>
-        <span style="color:${a.total_tunggakan > 0 ? "var(--c-red)" : "var(--c-green)"}">${rp(a.total_tunggakan)}</span>
-      </div>
-    </div>
-  `).join("") + (res.truncated
-    ? `<div class="cek-hint">Menampilkan ${data.length} hasil teratas. Perjelas kata kunci untuk hasil lebih akurat.</div>`
-    : "");
 }
 
 // ════════════════════════════════════════════════════════════════════════
