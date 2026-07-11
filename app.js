@@ -340,7 +340,6 @@ function renderCariResults() {
   pgState.cari.page = pg.curPage;
   el.innerHTML = `<div class="card"><div class="card-body" style="padding:0 16px;">
     ${pg.items.map(a => {
-      const totalBln = Number(a.bulan_tunggak_kas || 0) + Number(a.bulan_tunggak_rmd || 0) + Number(a.bulan_tunggak_konsumsi || 0) + Number(a.bulan_tunggak_dana_17n || 0);
       const iuranLabel = [
         a.ikut_kas      ? "Kas"     : "",
         a.ikut_rmd      ? "RMD"     : "",
@@ -348,20 +347,34 @@ function renderCariResults() {
         a.ikut_dana_17n ? "17n"     : "",
       ].filter(Boolean).join("+");
 
+      const sudahBulanIni = a.status_periode === "Sudah Bayar";
+      const adaTunggakanLama = Number(a.total_tunggakan || 0) > 0;
+
+      // Rincian jenis iuran yang masih nunggak secara kumulatif (sejak awal
+      // sistem), dipakai sebagai catatan tambahan di kedua kondisi di bawah.
+      const rincianTunggakan = [
+        a.ikut_kas      && Number(a.bulan_tunggak_kas      || 0) > 0 ? `Kas ${a.bulan_tunggak_kas}bln`           : "",
+        a.ikut_rmd      && Number(a.bulan_tunggak_rmd      || 0) > 0 ? `RMD ${a.bulan_tunggak_rmd}bln`           : "",
+        a.ikut_konsumsi && Number(a.bulan_tunggak_konsumsi || 0) > 0 ? `Konsumsi ${a.bulan_tunggak_konsumsi}bln` : "",
+        a.ikut_dana_17n && Number(a.bulan_tunggak_dana_17n || 0) > 0 ? `17n ${a.bulan_tunggak_dana_17n}bln`      : "",
+      ].filter(Boolean).join(", ");
+
+      const subInfo = sudahBulanIni
+        ? (adaTunggakanLama
+            ? `<span style="color:#856404">Bulan ini lunas · tunggakan lama ${rp(a.total_tunggakan)}${rincianTunggakan ? ` (${rincianTunggakan})` : ""}</span>`
+            : `<span style="color:var(--c-green)">Lunas</span>`)
+        : `<span style="color:var(--c-red)">Tunggakan ${rp(a.total_tunggakan)}${rincianTunggakan ? ` (${rincianTunggakan})` : ""}</span>`;
+
       return `
         <div class="pel-item ${isViewer() ? "viewer-result" : ""}" onclick="openDetail('${esc(a.id_anggota)}','cari')">
           <div class="avatar">${initials(a.nama)}</div>
           <div class="pel-info">
             <div class="pel-name">${escHtml(a.nama)}</div>
-            <div class="pel-sub">No ${escHtml(a.no_rumah)} · ${iuranLabel || "Iuran"} · ${
-              a.total_tunggakan > 0
-                ? `<span style="color:var(--c-red)">Tunggakan ${rp(a.total_tunggakan)}</span>`
-                : `<span style="color:var(--c-green)">Lunas</span>`
-            }</div>
+            <div class="pel-sub">No ${escHtml(a.no_rumah)} · ${iuranLabel || "Iuran"} · ${subInfo}</div>
           </div>
-          ${a.total_tunggakan > 0
-            ? `<span class="badge badge-red">${totalBln} bln</span>`
-            : `<span class="badge badge-green">✓</span>`}
+          ${sudahBulanIni
+            ? `<span class="badge badge-green">Sudah Bayar</span>`
+            : `<span class="badge badge-red">Belum Bayar</span>`}
         </div>`;
     }).join("")}
     ${renderPagination("cari", pg.curPage, pg.totalPages, data.length, pg.start, pg.end)}
